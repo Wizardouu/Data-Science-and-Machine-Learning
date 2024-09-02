@@ -1,0 +1,49 @@
+import numpy as np
+
+
+def k_fold_cross_validation(model, X, y, k=5):
+    # Step 1: Shuffle the data
+    indices = np.arange(X.shape[0])
+    np.random.shuffle(indices)
+    X = X[indices]
+    y = y[indices]
+
+    # Step 2: Split the data into k folds
+    fold_size = X.shape[0] // k
+    scores = []
+
+    for i in range(k):
+        # Step 3: Create training and validation sets
+        start_val_idx = i * fold_size
+        end_val_idx = start_val_idx + fold_size
+
+        X_val = X[start_val_idx:end_val_idx]
+        y_val = y[start_val_idx:end_val_idx]
+
+        X_train = np.concatenate([X[:start_val_idx], X[end_val_idx:]], axis=0)
+        y_train = np.concatenate([y[:start_val_idx], y[end_val_idx:]], axis=0)
+
+        # Step 4: Train the model
+        model.fit(X_train, y_train)
+
+        # Step 5: Evaluate the model
+        score = model.score(X_val, y_val)
+        scores.append(score)
+
+    return scores
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.datasets import load_iris
+
+# Load a sample dataset (Iris dataset)
+data = load_iris()
+X, y = data.data, data.target
+
+# Initialize the model
+model = DecisionTreeClassifier()
+
+# Perform k-fold cross-validation
+scores = k_fold_cross_validation(model, X, y, k=5)
+
+# Print the results
+print("Cross-validation scores:", scores)
+print("Average cross-validation score:", np.mean(scores))

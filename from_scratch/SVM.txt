@@ -1,0 +1,65 @@
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_iris
+import matplotlib.pyplot as plt
+
+# lambda_param (Regularization Parameter): Controls the trade-off between maximizing the margin and minimizing classification error.
+# Higher values of lambda_param increase the penalty for larger weights, leading to a simpler model.
+
+class SVM:
+    def __init__(self, lr=0.001, lambda_param=0.01, n_iters=1000):
+        self.lr = lr
+        self.lambda_param = lambda_param
+        self.n_iters = n_iters
+        self.w = None
+        self.b = None
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+
+        y = np.where(y <= 0, -1, 1)    # labels must be 1 , -1 so we convert them to ensure that
+
+        self.w = np.zeros(n_features)
+        self.b = 0
+
+        for _ in range(self.n_iters):
+            for idx, x_i in enumerate(X):
+                # Checks if the current sample is correctly classified and lies outside or on the margin
+                # If (y_[idx] * z) is greater than or equal to 1, the sample is correctly classified and satisfies the margin condition.
+                z = np.dot(x_i, self.w) + self.b
+                condition = (y[idx] * z) >= 1
+                if condition:
+                    self.w = self.w - self.lr * (2 * self.lambda_param * self.w)
+                else:
+                    # incorrectly classified , the sample is misclassified or inside the margin
+                    self.w = self.w - self.lr * (2 * self.lambda_param * self.w - np.dot(x_i, y[idx]))
+                    self.b = self.b + self.lr * y[idx]  # Notice the + instead of -
+
+    def predict(self, X):
+        z = np.dot(X, self.w) + self.b
+        return np.sign(z)
+
+
+
+# Load the Iris dataset
+data = load_iris()
+X, y = data.data, data.target
+
+# Binary classification: Select only classes 0 and 1
+y = np.where(y == 0, -1, 1)
+y = np.where(y == 2, -1, 1)
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Initialize the SVM
+svc = SVM()
+
+# Train the SVM on the training data
+svc.fit(X_train, y_train)
+
+# Predict the labels for the test set
+predictions = svc.predict(X_test)
+
+# Calculate and print the accuracy
+accuracy = np.sum(predictions == y_test) / len(y_test)
+print(f"Accuracy: {accuracy:.3f}")

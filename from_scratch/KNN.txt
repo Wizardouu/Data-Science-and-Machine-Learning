@@ -1,0 +1,64 @@
+import numpy as np
+from collections import Counter
+
+
+class KNN:
+    def __init__(self, k=3):
+        self.k = k
+
+    def fit(self, X, y):
+        self.X_train = X
+        self.y_train = y
+
+    def predict(self, X):
+        predictions = []
+        for x in X:
+            predictions.append(self.assign_to_class(x))
+        return np.array(predictions)
+
+    def assign_to_class(self, x):
+        # Compute distances between x and all examples in the training set
+        distances = []
+        for each_sample in self.X_train:
+            distances.append(self.euclidean_distance(x, each_sample))
+
+        # Get the k nearest samples, and their corresponding labels
+        k_indices = np.argsort(distances)[:self.k]
+
+        # get labels of neighbours
+        k_nearest_labels = []
+        for neighbour in k_indices:
+            k_nearest_labels.append(self.y_train[neighbour])
+            
+        # Majority vote, most common class label
+        most_common = Counter(k_nearest_labels).most_common(1)
+        return most_common[0][0]
+
+    def euclidean_distance(self,x1, x2):
+        return np.sqrt(np.sum((x1 - x2) ** 2))
+
+from sklearn.model_selection import train_test_split
+from sklearn import datasets
+
+def accuracy(y_true, y_pred):
+    accuracy = np.sum(y_true == y_pred) / len(y_true)
+    return accuracy
+
+if __name__ == "__main__":
+    # Load dataset
+    iris = datasets.load_iris()
+    X, y = iris.data, iris.target
+
+    # Split the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
+
+    # Initialize and train the model
+    k = 3
+    clf = KNN(k=k)
+    clf.fit(X_train, y_train)
+
+    # Make predictions
+    predictions = clf.predict(X_test)
+
+    # Print accuracy
+    print("KNN classification accuracy:", accuracy(y_test, predictions))

@@ -1,0 +1,62 @@
+import numpy as np
+
+class LogisticRegression:
+    def __init__(self, lr=0.001, n_iters=1000):
+        self.lr = lr
+        self.n_iters = n_iters
+        self.weights = None
+        self.bias = None
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        for _ in range(self.n_iters):
+            z = np.dot(X, self.weights) + self.bias
+            y_predicted = self._sigmoid(z)
+
+            dw = (1 / n_samples) * np.dot(X.T, (y_predicted - y))
+            db = (1 / n_samples) * np.sum(y_predicted - y)
+
+            self.weights = self.weights - self.lr * dw
+            self.bias = self.bias - self.lr * db
+
+    def predict(self, X):
+        z = np.dot(X, self.weights) + self.bias
+        y_predicted = self._sigmoid(z)
+        y_predicted_cls = []  # Initialize an empty list to store the predicted classes
+
+        for i in y_predicted:
+            if i > 0.5:
+                y_predicted_cls.append(1) 
+            else:
+                y_predicted_cls.append(0)
+        return np.array(y_predicted_cls)
+
+    def _sigmoid(self, z):
+        return 1 / (1 + np.exp(-z))
+from sklearn.model_selection import train_test_split
+from sklearn import datasets
+
+def accuracy(y_true, y_pred):
+    accuracy = np.sum(y_true == y_pred) / len(y_true)
+    return accuracy
+
+if __name__ == "__main__":
+    # Load dataset
+    bc = datasets.load_breast_cancer()
+    X, y = bc.data, bc.target
+
+    # Split the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
+
+    # Initialize and train the model
+    regressor = LogisticRegression(lr=0.0001, n_iters=1000)
+    regressor.fit(X_train, y_train)
+
+    # Make predictions
+    predictions = regressor.predict(X_test)
+
+    # Print accuracy
+    print("LR classification accuracy:", accuracy(y_test, predictions))

@@ -1,0 +1,65 @@
+import numpy as np
+
+class Perceptron:
+    def __init__(self, lr=0.01, n_iters=1000):
+        self.lr = lr
+        self.n_iters = n_iters
+        self.weights = None
+        self.bias = None
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        # Initialize weights and bias
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        # Convert labels to -1 and 1 if they're not already in that form
+        y_ = []
+        for i in y:
+            if i > 0:
+                y_.append(1)
+            else:
+                y_.append(-1)
+        y_ = np.array(y)
+
+        for _ in range(self.n_iters):
+            for idx, x_i in enumerate(X):
+                # Calculate the linear output
+                linear_output = np.dot(x_i, self.weights) + self.bias
+                # Apply the step function to determine the prediction
+                # np.sign return sign of the value if -2.65 return -1 , if 8 return 1
+                y_predicted = np.sign(linear_output)
+
+                # Update the weights and bias if the prediction is wrong
+                if y_[idx] * y_predicted <= 0:
+                    self.weights = self.weights + self.lr * y_[idx] * x_i
+                    self.bias = self.bias + self.lr * y_[idx]
+
+    def predict(self, X):
+        linear_output = np.dot(X, self.weights) + self.bias
+        y_predicted = np.sign(linear_output)
+        return y_predicted
+from sklearn.model_selection import train_test_split
+from sklearn import datasets
+
+def accuracy(y_true, y_pred):
+    return np.sum(y_true == y_pred) / len(y_true)
+
+if __name__ == "__main__":
+    # Load the Iris dataset and use only two classes (binary classification)
+    iris = datasets.load_iris()
+    X = iris.data[:100]  # Take the first 100 samples (two classes)
+    y = iris.target[:100]  # Target for binary classification
+
+    # Split the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
+
+    # Initialize and train the Perceptron
+    p = Perceptron(lr=0.01, n_iters=1000)
+    p.fit(X_train, y_train)
+
+    # Make predictions on the test set
+    predictions = p.predict(X_test)
+
+    # Print the accuracy of the Perceptron
+    print("Perceptron classification accuracy:",accuracy(predictions,y_test))

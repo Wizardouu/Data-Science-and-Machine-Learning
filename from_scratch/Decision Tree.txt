@@ -1,0 +1,183 @@
+# Import required libraries
+import numpy as np
+from collections import Counter
+
+
+# Function to calculate entropy
+def entropy(y):
+    """
+    Calculate the entropy of label array y.
+    Entropy is a measure of the impurity of the dataset.
+    """
+    entropys = []
+    counts = np.bincount(y)  # Count the occurrences of each label
+    probabilities = counts / len(y)  # Calculate the probabilities of each label
+    for p in probabilities:
+        if p > 0:
+            entropys.append(p * np.log2(p))
+    return -np.sum(entropys)
+
+
+# Function to calculate information gain
+def information_gain(X_column, y, threshold):
+    """
+    Calculate the information gain of a potential split on a feature.
+    Information gain is the reduction in entropy from the parent node to the child nodes.
+    """
+    parent_entropy = entropy(y)  # Entropy of the current node (parent)
+
+    # Create the left and right child splits based on the threshold
+    left_idxs = X_column <= threshold
+    right_idxs = X_column > threshold
+
+    # If either split has no samples, return 0 (no information gain)
+    if len(y[left_idxs]) == 0 or len(y[right_idxs]) == 0:
+        return 0
+
+    # Calculate weighted entropy of the children
+    n = len(y)
+    n_left, n_right = len(y[left_idxs]), len(y[right_idxs])
+
+    left_entropy = entropy(y[left_idxs])
+    right_entropy = entropy(y[right_idxs])
+
+    child_entropy = (n_left / n) * left_entropy + (n_right / n) * right_entropy
+
+    # Information gain is the reduction in entropy
+    return parent_entropy - child_entropy
+
+
+# Function to find the best split
+def best_split(X, y):
+    """
+    Find the best feature and threshold to split on.
+    This is determined by the highest information gain.
+    """
+    best_gain = -1  # Initialize best gain as negative infinity
+    best_feature, best_threshold = None, None  # Initialize best feature and threshold
+
+    # Loop through all features
+    for feature_idx in range(X.shape[1]):
+        X_column = X[:, feature_idx]  # Get the column for the current feature
+        thresholds = np.unique(X_column)  # Get unique thresholds to consider
+
+        # Loop through all thresholds
+        for threshold in thresholds:
+            gain = information_gain(X_column, y, threshold)  # Calculate information gain
+
+            # If this gain is better than the best found, update best feature and threshold
+            if gain > best_gain:
+                best_gain = gain
+                best_feature = feature_idx
+                best_threshold = threshold
+
+    return best_feature, best_threshold  # Return the best feature and threshold
+
+
+# Define the Decision Tree class
+class DecisionTree:
+    def __init__(self, min_samples_split=2, max_depth=100):
+        """
+        Initialize the Decision Tree with minimum samples to split and maximum depth.
+        """
+        self.min_samples_split = min_samples_split  # Minimum samples required to split a node
+        self.max_depth = max_depth  # Maximum depth of the tree
+        self.root = None  # Root node of the tree
+
+    # Define the Node class to represent each node in the tree
+    class Node:
+        def __init__(self, feature=None, threshold=None, left=None, right=None, value=None):
+            """
+            Initialize a node with feature, threshold, left and right children, and value.
+            """
+            self.feature = feature  # Feature to split on
+            self.threshold = threshold  # Threshold value for the split
+            self.left = left  # Left child node
+            self.right = right  # Right child node
+            self.value = value  # Value if this is a leaf node (class label)
+
+    # Recursive function to build the tree
+    def build_tree(self, X, y, depth=0):
+        """
+        Recursively build the decision tree by finding the best splits.
+        """
+        n_samples, n_features = X.shape  # Number of samples and features
+        n_labels = len(np.unique(y))  # Number of unique labels
+
+        # Stopping criteria: max depth reached, no labels left, or not enough samples to split
+        if depth >= self.max_depth or n_labels == 1 or n_samples < self.min_samples_split:
+            leaf_value = self.most_common_label(y)  # Assign the most common label as the leaf value
+            return self.Node(value=leaf_value)
+
+        # Find the best split
+        feature, threshold = best_split(X, y)
+        if feature is None:
+            leaf_value = self.most_common_label(y)
+            return self.Node(value=leaf_value)
+
+        # Split the data into left and right branches
+        left_idxs = X[:, feature] <= threshold
+        right_idxs = X[:, feature] > threshold
+
+        # Recursively build the left and right subtrees
+        left = self.build_tree(X[left_idxs], y[left_idxs], depth + 1)
+        right = self.build_tree(X[right_idxs], y[right_idxs], depth + 1)
+
+        # Return the current node with the feature, threshold, and children
+        return self.Node(feature, threshold, left, right)
+
+    # Function to fit the model to the data
+    def fit(self, X, y):
+        self.root = self.build_tree(X, y)  # Start building the tree from the root
+
+    # Function to predict the class label for a given sample
+    def predict(self, X):
+        return np.array([self._traverse_tree(x, self.root) for x in X])  # Traverse the tree for each sample
+
+    # Helper function to traverse the tree to make a prediction
+    def _traverse_tree(self, x, node):
+        """
+        Traverse the tree to make a prediction for a single sample.
+        """
+        if node.value is not None:  # If it's a leaf node, return its value (class label)
+            return node.value
+
+        # Otherwise, decide whether to go left or right based on the threshold
+        if x[node.feature] <= node.threshold:
+            return self._traverse_tree(x, node.left)
+        return self._traverse_tree(x, node.right)
+
+    # Helper function to find the most common label in a set of labels
+    def most_common_label(self, y):
+        """
+        Find the most common label in the dataset.
+        """
+        counter = Counter(y)  # Count occurrences of each label
+        most_common = counter.most_common(1)[0][0]  # Return the most common label
+        return most_common
+
+
+# Example usage with the Iris dataset
+if __name__ == "__main__":
+    from sklearn.model_selection import train_test_split
+    from sklearn.datasets import load_iris
+
+    # Load the Iris dataset
+    data = load_iris()
+    X, y = data.data, data.target
+
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Initialize the decision tree
+    tree = DecisionTree(max_depth=10)
+
+    # Train the decision tree on the training data
+    tree.fit(X_train, y_train)
+
+    # Predict the labels for the test set
+    predictions = tree.predict(X_test)
+
+    # Calculate and print the accuracy
+    accuracy = np.sum(predictions == y_test) / len(y_test)
+    print(f"Accuracy: {accuracy:.3f}")

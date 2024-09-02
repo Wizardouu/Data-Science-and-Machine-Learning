@@ -1,0 +1,117 @@
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+class DecisionStump:
+    def __init__(self):
+        self.feature_index = None
+        self.threshold = None
+        self.polarity = 1
+        self.alpha = None
+
+    def predict(self, X):
+        n_samples = X.shape[0]
+        predictions = np.ones(n_samples)
+
+        # Iterate through samples to apply the decision stump rule
+        for i in range(n_samples):
+            if self.polarity == 1:
+                if X[i, self.feature_index] < self.threshold:
+                    predictions[i] = -1
+            else:
+                if X[i, self.feature_index] >= self.threshold:
+                    predictions[i] = -1
+
+        return predictions
+
+class AdaBoost:
+    def __init__(self, n_clf=5):
+        self.n_clf = n_clf
+        self.clfs = []
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        w = np.full(n_samples, (1 / n_samples))  # Initialize weights equally
+        self.clfs = []
+
+        for _ in range(self.n_clf):
+            clf = DecisionStump()
+            min_error = float('inf')
+
+            # Iterate over all features
+            for feature_i in range(n_features):
+                feature_values = np.unique(X[:, feature_i])
+
+                # Iterate over all unique values in the feature as possible thresholds
+                for threshold in feature_values:
+                    p = 1
+                    predictions = np.ones(n_samples)
+
+                    # Iterate through samples to apply the decision stump rule
+                    for i in range(n_samples):
+                        if X[i, feature_i] < threshold:
+                            predictions[i] = -1
+
+                    # Calculate the weighted error
+                    error = sum(w[y != predictions])
+
+                    # If error is greater than 50%, flip the polarity
+                    if error > 0.5:
+                        error = 1 - error
+                        p = -1
+
+                    # Save the best decision stump
+                    if error < min_error:
+                        min_error = error
+                        clf.polarity = p
+                        clf.threshold = threshold
+                        clf.feature_index = feature_i
+
+            # Calculate the alpha (weight of the classifier)
+            clf.alpha = 0.5 * np.log((1.0 - min_error) / (min_error + 1e-10))
+
+            # Update weights
+            predictions = clf.predict(X)
+            w = w * np.exp(-clf.alpha * y * predictions)
+            w = w / np.sum(w)  # Normalize weights
+
+            # Save the classifier
+            self.clfs.append(clf)
+
+    def predict(self, X):
+        clf_preds = []
+
+        # Iterate through all classifiers and predict
+        for clf in self.clfs:
+            clf_pred = clf.alpha * clf.predict(X)
+            clf_preds.append(clf_pred)
+
+        # Sum the predictions from all classifiers
+        y_pred = np.sum(clf_preds, axis=0)
+        y_pred = np.sign(y_pred)  # Apply sign to get the final prediction
+
+        return y_pred
+
+# Load the Iris dataset
+iris = load_iris()
+X = iris.data
+y = iris.target
+
+# Convert to binary classification (class 0 vs. not class 0)
+y = np.where(y == 0, -1, 1)
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Initialize AdaBoost with a specified number of weak classifiers
+model = AdaBoost(n_clf=10)
+
+# Train the model
+model.fit(X_train, y_train)
+
+# Predict on the test set
+predictions = model.predict(X_test)
+
+# Calculate accuracy
+accuracy = np.mean(predictions == y_test)
+print("Accuracy:", accuracy)

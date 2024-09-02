@@ -1,0 +1,82 @@
+import numpy as np
+def standardize(X):
+    """
+    Standardizes the dataset X by subtracting the mean and dividing by the standard deviation.
+    This ensures each feature has a mean of 0 and a standard deviation of 1.
+    """
+    X_mean = np.mean(X, axis=0)
+    X_std = np.std(X, axis=0)
+    return (X - X_mean) / X_std
+def compute_covariance_matrix(X):
+    """
+    Computes the covariance matrix for the dataset X.
+    The covariance matrix is a square matrix giving the covariance between each pair of features.
+    """
+    n_samples = X.shape[0]
+    return np.dot(X.T, X) / (n_samples - 1)
+def compute_eigenvalues_and_eigenvectors(C):
+    """
+    Computes the eigenvalues and eigenvectors of the covariance matrix C.
+    The eigenvectors determine the direction of the new feature space, and the eigenvalues determine their magnitude.
+    """
+    eigenvalues, eigenvectors = np.linalg.eigh(C)
+    return eigenvalues, eigenvectors
+def sort_eigenvalues_and_eigenvectors(eigenvalues, eigenvectors):
+    """
+    Sorts eigenvalues and their corresponding eigenvectors in descending order.
+    This ensures that the first few eigenvectors correspond to the largest eigenvalues.
+    """
+    idx = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[idx]
+    sorted_eigenvectors = eigenvectors[:, idx]
+    return sorted_eigenvalues, sorted_eigenvectors
+def select_principal_components(eigenvectors, k):
+    """
+    Selects the top k eigenvectors (principal components) to form the transformation matrix.
+    """
+    return eigenvectors[:, :k]
+def transform_data(X, components):
+    """
+    Transforms the original data X into the new space defined by the principal components.
+    """
+    return np.dot(X, components)
+def pca(X, k):
+    """
+    Performs PCA on dataset X and reduces its dimensionality to k dimensions.
+    """
+    # Step 1: Standardize the data
+    X_standardized = standardize(X)
+
+    # Step 2: Compute the covariance matrix
+    covariance_matrix = compute_covariance_matrix(X_standardized)
+
+    # Step 3: Compute the eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = compute_eigenvalues_and_eigenvectors(covariance_matrix)
+
+    # Step 4: Sort eigenvalues and eigenvectors
+    sorted_eigenvalues, sorted_eigenvectors = sort_eigenvalues_and_eigenvectors(eigenvalues, eigenvectors)
+
+    # Step 5: Select the top k eigenvectors (principal components)
+    components = select_principal_components(sorted_eigenvectors, k)
+
+    # Step 6: Transform the data
+    X_pca = transform_data(X_standardized, components)
+
+    return X_pca, sorted_eigenvalues[:k], components
+
+if __name__ == "__main__":
+    from sklearn.datasets import load_iris
+
+    # Load the Iris dataset
+    data = load_iris()
+    X = data.data
+
+    # Perform PCA, reducing to 2 dimensions
+    X_pca, eigenvalues, components = pca(X, k=2)
+
+    print("PCA Result (First 5 samples):")
+    print(X_pca[:5])
+    print("Explained Variance (Eigenvalues):")
+    print(eigenvalues)
+    print("Principal Components (Eigenvectors):")
+    print(components)
